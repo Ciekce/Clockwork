@@ -247,7 +247,8 @@ Move Worker::iterative_deepening(const Position& root_position) {
 
     for (Depth search_depth = 1; search_depth < MAX_PLY; search_depth++) {
         // Call search
-        m_seldepth  = 0;
+        m_seldepth   = 0;
+        m_root_depth = search_depth;
         Value alpha = -VALUE_INF, beta = VALUE_INF;
         Value delta = 50;
         if (search_depth >= 5) {
@@ -559,10 +560,16 @@ Value Worker::search(
             }
         }
 
+        if (extension == 0 && !ROOT_NODE && ply < m_root_depth * 2 && tt_data && m == tt_data->move
+            && depth <= 7 && !is_in_check && ss->static_eval <= alpha - 26
+            && tt_data->bound() == Bound::Lower) {
+            extension = 1;
+        }
+
         // Simplified captures extension
         if (extension == 0 && m.is_capture() && !m.is_en_passant()) {
             PieceType captured = pos.board()[m.to()].ptype();
-    
+
         if (SEE::value(captured) > SEE::value(PieceType::Pawn)) {
             if (non_pawn_material < 0) {
                 non_pawn_material = (pos.piece_count(Color::White, PieceType::Queen)
@@ -574,7 +581,7 @@ Value Worker::search(
                 non_pawn_material += (pos.piece_count(Color::White, PieceType::Knight)
                     + pos.piece_count(Color::Black, PieceType::Knight)) * SEE::value(PieceType::Knight);
             }
-        
+
             if (non_pawn_material <= 2 * SEE::value(PieceType::Rook)) {
                 extension = 1;
             }

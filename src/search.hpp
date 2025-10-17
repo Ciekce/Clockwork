@@ -170,6 +170,7 @@ private:
     std::atomic<bool>        m_exiting;
     std::array<u64, 64 * 64> m_node_counts;
     Depth                    m_seldepth;
+    Depth                    m_root_depth;
 
     template<bool IS_MAIN>
     Move iterative_deepening(const Position& root_position);
