@@ -42,6 +42,14 @@ add_library(lps INTERFACE)
 target_include_directories(lps INTERFACE vendor/lps/include)
 add_dependencies(lps checkout_lps)
 
+# Checkout Pyrrhic
+add_custom_target(checkout_pyrrhic COMMAND ${CMAKE_COMMAND}
+    -P ${CMAKE_CURRENT_LIST_DIR}/scripts/checkout_pyrrhic.cmake
+    DEPENDS ${CMAKE_CURRENT_LIST_DIR}/vendor/pyrrhic_commit.txt)
+add_library(pyrrhic INTERFACE)
+target_include_directories(pyrrhic INTERFACE vendor/pyrrhic)
+add_dependencies(pyrrhic checkout_pyrrhic)
+
 # Flags
 function(target_add_flags target)
 
@@ -78,7 +86,7 @@ function(target_add_flags target)
     target_include_directories(${target} PUBLIC src)
 
     # Libraries
-    target_link_libraries(${target} PUBLIC git_hash lps)
+    target_link_libraries(${target} PUBLIC git_hash lps pyrrhic)
 
     # LTO
     message(STATUS "LTO is set to: ${lto}")
