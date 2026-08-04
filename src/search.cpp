@@ -19,6 +19,7 @@
 #include <atomic>
 #include <cmath>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <mutex>
 #include <numeric>
@@ -49,13 +50,6 @@ static i32 stat_malus(Depth malus_depth) {
                                              - tuned::stat_malus_sub);
 }
 
-std::ostream& operator<<(std::ostream& os, const PV& pv) {
-    for (Move m : pv.m_pv) {
-        os << m << ' ';
-    }
-    return os;
-}
-
 Searcher::Searcher() :
     idle_barrier(std::make_unique<std::barrier<>>(1)),
     started_barrier(std::make_unique<std::barrier<>>(1)) {
@@ -80,6 +74,8 @@ void Searcher::launch_search(SearchSettings settings_) {
 
         settings = settings_;
         tt.increment_age();
+
+        init_root_moves(m_workers[0]->root_position);
 
         for (auto& worker : m_workers) {
             worker->prepare();
@@ -163,6 +159,40 @@ u64 Searcher::tb_hit_count() {
     return tb_hits;
 }
 
+void Searcher::init_root_moves(const Position& root_position) {
+    root_moves.clear();
+    root_moves.reserve(256);
+
+    MoveGen movegen{root_position};
+
+    MoveList noisy{};
+    MoveList quiet{};
+
+    movegen.generate_moves(noisy, quiet);
+
+    const auto insert_root_moves = [&](const MoveList& moves) {
+        for (const auto move : moves) {
+            root_moves.emplace_back(move);
+        }
+    };
+
+    insert_root_moves(noisy);
+    insert_root_moves(quiet);
+
+    multipv   = std::min(settings.multipv, root_moves.size());
+    probe_wdl = settings.tb_enabled;
+
+    if (!settings.tb_enabled || root_moves.empty()
+        || root_position.board().get_piece_count() > tb::max_pieces()) {
+        return;
+    }
+
+    const auto dtz_succeeded = tb::probe_root(root_position, root_moves);
+
+    // Avoid probing WDL when a successful DTZ probe says we're winning, to help matefinding.
+    probe_wdl = !dtz_succeeded || root_moves[0].tb_wdl != WDL::Win;
+}
+
 Worker::Worker(Searcher& searcher, ThreadType thread_type) :
     m_searcher(searcher),
     m_thread_type(thread_type) {
@@ -214,6 +244,10 @@ void Worker::prepare() {
     m_stopped      = false;
     m_search_nodes = 0;
     m_tb_hits      = 0;
+
+    m_td.root_moves.clear();
+    m_td.root_moves.reserve(256);
+    std::ranges::copy(m_searcher.root_moves, std::back_inserter(m_td.root_moves));
 }
 
 void Worker::start_searching() {
@@ -256,11 +290,6 @@ Move Worker::iterative_deepening(const Position& root_position) {
 
     Value base_search_score = -VALUE_INF;
 
-    init_root_moves(root_position);
-
-    m_pv_start = 0;
-    m_pv_end   = m_td.root_moves.size();
-
     m_node_counts.fill(0);
 
     for (Depth search_depth = 1; search_depth < MAX_PLY; search_depth++) {
@@ -271,7 +300,28 @@ Move Worker::iterative_deepening(const Position& root_position) {
             root_move.previous_score = root_move.score;
         }
 
-        for (m_pv_idx = 0; m_pv_idx < m_multipv; ++m_pv_idx) {
+        m_pv_start = 0;
+        m_pv_end   = 0;
+
+        for (m_pv_idx = 0; m_pv_idx < m_searcher.multipv; ++m_pv_idx) {
+            if (m_pv_idx == m_pv_end) {
+                // We've reached the end of this block of root moves (or this is the first PV).
+                // Find the end of the next block by scanning to the next root move with a lower
+                // TB rank, or the end of the list.
+                // When multipv == 1, this has the effect of filtering out all suboptimal root moves
+                // from being searched.
+
+                m_pv_start = m_pv_idx;
+
+                const auto& first_root_move = m_td.root_moves[m_pv_idx];
+                for (m_pv_end = m_pv_idx + 1; m_pv_end < m_td.root_moves.size(); m_pv_end++) {
+                    const auto& curr_root_move = m_td.root_moves[m_pv_end];
+                    if (curr_root_move.tb_rank < first_root_move.tb_rank) {
+                        break;
+                    }
+                }
+            }
+
             m_seldepth = 0;
 
             const auto& root_move = m_td.root_moves[m_pv_idx];
@@ -494,31 +544,31 @@ Value Worker::search(
     auto syzygy_max = VALUE_INF;
 
     // TB Probing
-    if (!ROOT_NODE && !excluded && m_searcher.settings.tb_enabled
+    if (!ROOT_NODE && !excluded && m_searcher.settings.tb_enabled && m_searcher.probe_wdl
         && pos.board().get_piece_count() <= tb::max_pieces() && pos.get_50mr_counter() == 0
         && pos.rook_info(Color::White).is_clear() && pos.rook_info(Color::Black).is_clear()) {
         const auto wdl = tb::probe_wdl(pos);
-        if (wdl != tb::WDL::None) {
+        if (wdl != WDL::None) {
             increment_tb_hits();
 
             Value score;
             Bound bound;
 
             switch (wdl) {
-            case tb::WDL::Win:
+            case WDL::Win:
                 score = tb_win_in(ply);
                 bound = Bound::Lower;
                 break;
-            case tb::WDL::Draw:
+            case WDL::Draw:
                 score = 0;
                 bound = Bound::Exact;
                 break;
-            case tb::WDL::Loss:
+            case WDL::Loss:
                 score = tb_loss_in(ply);
                 bound = Bound::Upper;
                 break;
             default:
-                __builtin_unreachable();
+                unreachable();
             }
 
             if (bound == Bound::Exact || (bound == Bound::Upper && score <= alpha)
@@ -1201,29 +1251,6 @@ Value Worker::adj_shuffle(const Position& pos, Value value) {
     return value;
 }
 
-void Worker::init_root_moves(const Position& root_position) {
-    m_td.root_moves.clear();
-    m_td.root_moves.reserve(256);
-
-    MoveGen movegen{root_position};
-
-    MoveList noisy{};
-    MoveList quiet{};
-
-    movegen.generate_moves(noisy, quiet);
-
-    const auto insert_root_moves = [&](const MoveList& moves) {
-        for (const auto move : moves) {
-            m_td.root_moves.emplace_back(move);
-        }
-    };
-
-    insert_root_moves(noisy);
-    insert_root_moves(quiet);
-
-    m_multipv = std::min(m_searcher.settings.multipv, m_td.root_moves.size());
-}
-
 void Worker::print_info_line(usize pv_idx) {
     const auto& root_move = m_td.root_moves[pv_idx];
 
@@ -1235,6 +1262,14 @@ void Worker::print_info_line(usize pv_idx) {
     if (root_move.score == -VALUE_INF) {
         score = root_move.previous_score;
 
+        upperbound = false;
+        lowerbound = false;
+    }
+
+    if (score < root_move.tb_min_score || score > root_move.tb_max_score) {
+        score = std::clamp(score, root_move.tb_min_score, root_move.tb_max_score);
+
+        // root TB scores are exact
         upperbound = false;
         lowerbound = false;
     }
@@ -1252,8 +1287,7 @@ void Worker::print_info_line(usize pv_idx) {
             return "cp " + std::to_string(TB_DISPLAY_BASE + score - VALUE_TB_WIN);
         }
         if (is_tb_loss_score(score)) {
-            return "cp " + std::to_string(-TB_DISPLAY_BASE + score + VALUE_TB_WIN)
-                 + " (tb loss score " + std::to_string(score) + ")";
+            return "cp " + std::to_string(-TB_DISPLAY_BASE + score + VALUE_TB_WIN);
         }
         return "cp " + std::to_string(score / 4);
     };
@@ -1288,7 +1322,7 @@ void Worker::print_info_line(usize pv_idx) {
 }
 
 void Worker::print_info_lines() {
-    for (usize pv_idx = 0; pv_idx < m_multipv; ++pv_idx) {
+    for (usize pv_idx = 0; pv_idx < m_searcher.multipv; ++pv_idx) {
         print_info_line(pv_idx);
     }
 }

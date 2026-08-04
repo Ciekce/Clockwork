@@ -5,8 +5,8 @@
 #include "position.hpp"
 #include "psqt_state.hpp"
 #include "repetition_info.hpp"
+#include "root_move.hpp"
 #include "tt.hpp"
-#include "util/static_vector.hpp"
 #include "util/types.hpp"
 #include <barrier>
 #include <iosfwd>
@@ -41,33 +41,6 @@ enum class ThreadType {
     SECONDARY = 0,
 };
 
-struct PV {
-public:
-    void clear() {
-        m_pv.clear();
-    }
-
-    void set(Move move) {
-        m_pv.clear();
-        m_pv.push_back(move);
-    }
-
-    void set(Move move, const PV& child_pv_line) {
-        m_pv.clear();
-        m_pv.push_back(move);
-        m_pv.append(child_pv_line.m_pv);
-    }
-
-    Move first_move() const {
-        return m_pv.empty() ? Move::none() : m_pv[0];
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const PV& pv);
-
-private:
-    StaticVector<Move, MAX_PLY + 1> m_pv;
-};
-
 struct Stack {
     Value          static_eval = 0;
     Move           killer      = Move::none();
@@ -83,25 +56,6 @@ struct SearchLimits {
     u64             soft_node_limit;
     u64             hard_node_limit;
     Depth           depth_limit;
-};
-
-struct RootMove {
-    explicit RootMove(Move move) {
-        pv.set(move);
-    }
-
-    Value score          = -VALUE_INF;
-    Value window_score   = -VALUE_INF;
-    Value previous_score = -VALUE_INF;
-    Value display_score  = -VALUE_INF;
-
-    bool upperbound = false;
-    bool lowerbound = false;
-
-    PV pv;
-
-    Depth searched_depth = 1;
-    Depth seldepth       = 0;
 };
 
 struct ThreadData {
@@ -138,6 +92,12 @@ public:
     SearchSettings settings;
     TT             tt;
 
+    // Root moves are duplicated here to avoid probing DTZ tables once for every thread,
+    // which is costly with many threads and DTZ tables on an HDD (TCEC).
+    std::vector<RootMove> root_moves;
+    usize                 multipv;
+    bool                  probe_wdl = false;
+
     // We use a shared_mutex to ensure proper mutual thread exclusion.and avoid races.
     // The UCI thread only ever obtains exclusive access (using std::unique_lock);
     // search threads only ever obtain shared access (using std::shared_lock).
@@ -166,6 +126,8 @@ public:
     }
 
 private:
+    void init_root_moves(const Position& root_position);
+
     std::vector<unique_ptr_huge_page<Worker>> m_workers;
 };
 
@@ -226,7 +188,6 @@ private:
     std::thread              m_thread;
     ThreadType               m_thread_type;
     SearchLimits             m_search_limits;
-    usize                    m_multipv;
     ThreadData               m_td;
     usize                    m_pv_idx;
     usize                    m_pv_start;
@@ -249,8 +210,6 @@ private:
     Value adj_shuffle(const Position& pos, Value value);
     bool  check_tm_hard_limit();
 
-    void init_root_moves(const Position& root_position);
-
     void print_info_lines();
     void print_info_line(usize pv_idx);
 
@@ -266,7 +225,7 @@ private:
     }
 
     bool is_legal_root_move(Move move) const {
-        for (usize i = m_pv_idx; i < m_td.root_moves.size(); ++i) {
+        for (usize i = m_pv_idx; i < m_pv_end; ++i) {
             const auto& root_move = m_td.root_moves[i];
             if (root_move.pv.first_move() == move) {
                 return true;

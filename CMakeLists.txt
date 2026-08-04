@@ -131,6 +131,8 @@ set(srcs
     src/psqt_state.hpp
     src/repetition_info.cpp
     src/repetition_info.hpp
+    src/root_move.cpp
+    src/root_move.hpp
     src/search.cpp
     src/search.hpp
     src/speedtest.cpp

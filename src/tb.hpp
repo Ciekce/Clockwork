@@ -1,8 +1,11 @@
 #pragma once
 
 #include "position.hpp"
+#include "root_move.hpp"
 #include "util/types.hpp"
+#include <span>
 #include <string_view>
+#include <utility>
 
 namespace Clockwork::tb {
 
@@ -20,13 +23,9 @@ void       free();
 
 [[nodiscard]] u32 max_pieces();
 
-enum class WDL {
-    None,
-    Win,
-    Draw,
-    Loss,
-};
+// Returns whether the DTZ probe succeeded.
+[[nodiscard]] bool probe_root(const Position& pos, std::span<Search::RootMove> root_moves);
 
-[[nodiscard]] WDL probe_wdl(const Position& pos);
+[[nodiscard]] Search::WDL probe_wdl(const Position& pos);
 
 }
