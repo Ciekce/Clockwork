@@ -211,6 +211,10 @@ struct Byteboard {
              & get_occupied_bitboard();
     }
 
+    [[nodiscard]] usize get_piece_count() const {
+        return to_vector().nonzeros().popcount();
+    }
+
     [[nodiscard]] Bitboard bitboard_for(Color color, PieceType ptype) const {
         Place p{color, ptype, PieceId{0}};
         return Bitboard{(to_vector() & u8x64::splat(0xF0)).eq(u8x64::splat(p.raw)).to_bits()};

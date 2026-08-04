@@ -7,6 +7,7 @@
 #include "position.hpp"
 #include "search.hpp"
 #include "speedtest.hpp"
+#include "tb.hpp"
 #include "tuned.hpp"
 #include "util/ios_fmt_guard.hpp"
 #include "util/parse.hpp"
@@ -34,6 +35,10 @@ UCIHandler::UCIHandler() :
     m_position(*Position::parse(STARTPOS)) {
     searcher.initialize(1);
     searcher.set_position(m_position, m_repetition_info);
+}
+
+UCIHandler::~UCIHandler() {
+    tb::free();
 }
 
 void UCIHandler::loop() {
@@ -65,6 +70,7 @@ void UCIHandler::execute_command(const std::string& line) {
         std::cout << "option name Threads type spin default 1 min 1 max " << MAX_THREADS << "\n";
         std::cout << "option name Hash type spin default 16 min 1 max " << MAX_HASH << "\n";
         std::cout << "option name MultiPV type spin default 1 min 1 max " << MAX_MULTIPV << "\n";
+        std::cout << "option name SyzygyPath type string default <empty>\n";
         tuned::uci_print_tunable_options();
         std::cout << "uciok" << std::endl;
     } else if (command == "ucinewgame") {
@@ -131,8 +137,9 @@ void UCIHandler::handle_debug(std::istringstream&) {
 
 void UCIHandler::handle_go(std::istringstream& is) {
     // Clear any previous settings
-    settings         = {};
-    settings.multipv = m_multipv;
+    settings            = {};
+    settings.multipv    = m_multipv;
+    settings.tb_enabled = m_tb_enabled;
     std::string token;
     while (is >> token) {
         if (token == "depth") {
@@ -285,6 +292,22 @@ void UCIHandler::handle_setoption(std::istringstream& is) {
             m_use_soft_nodes = false;
         } else {
             std::cout << "Invalid value " << value_str << std::endl;
+        }
+    } else if (name == "SyzygyPath") {
+        //TODO accept paths with spaces
+        m_tb_enabled = false;
+        switch (tb::init(value_str)) {
+        case tb::InitStatus::Failed:
+            std::cout << "Failed to initialize Pyrrhic" << std::endl;
+            break;
+        case tb::InitStatus::NoneFound:
+            std::cout << "No TB files found" << std::endl;
+            break;
+        case tb::InitStatus::Success:
+            std::cout << "info string Found " << tb::wdl_count() << " WDL and " << tb::dtz_count()
+                      << " DTZ files up to " << tb::max_pieces() << "-man" << std::endl;
+            m_tb_enabled = true;
+            break;
         }
     } else if (tuned::uci_parse_tunable(name, value_str)) {
         // Successfully parsed tunable

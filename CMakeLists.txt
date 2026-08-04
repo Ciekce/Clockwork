@@ -43,12 +43,14 @@ target_include_directories(lps INTERFACE vendor/lps/include)
 add_dependencies(lps checkout_lps)
 
 # Checkout Pyrrhic
-add_custom_target(checkout_pyrrhic COMMAND ${CMAKE_COMMAND}
-    -P ${CMAKE_CURRENT_LIST_DIR}/scripts/checkout_pyrrhic.cmake
-    DEPENDS ${CMAKE_CURRENT_LIST_DIR}/vendor/pyrrhic_commit.txt)
-add_library(pyrrhic INTERFACE)
-target_include_directories(pyrrhic INTERFACE vendor/pyrrhic)
-add_dependencies(pyrrhic checkout_pyrrhic)
+add_library(pyrrhic OBJECT
+    vendor/Pyrrhic/tbconfig.h
+    vendor/Pyrrhic/tbprobe.h
+    vendor/Pyrrhic/tbprobe.cpp
+    vendor/Pyrrhic/stdendian.h)
+target_include_directories(pyrrhic PUBLIC vendor/Pyrrhic)
+# Pyrrhic depends on bb_attacks.hpp, which depends on util/types.h, which depends on lps
+target_link_libraries(pyrrhic PRIVATE lps)
 
 # Flags
 function(target_add_flags target)
@@ -97,6 +99,8 @@ endfunction()
 
 # Sorted list of source files
 set(srcs
+    src/bb_attacks.cpp
+    src/bb_attacks.hpp
     src/bench.cpp
     src/bench.hpp
     src/board.cpp
@@ -132,6 +136,8 @@ set(srcs
     src/speedtest.cpp
     src/speedtest.hpp
     src/square.hpp
+    src/tb.cpp
+    src/tb.hpp
     src/tm.cpp
     src/tm.hpp
     src/tt.cpp

@@ -14,6 +14,7 @@ namespace Clockwork::UCI {
 class UCIHandler {
 public:
     UCIHandler();
+    ~UCIHandler();
 
     void loop();
     void handle_command_line(i32 argc, char* argv[]);
@@ -25,6 +26,7 @@ private:
     TT    m_tt;
     bool  m_use_soft_nodes = false;
     usize m_multipv        = 1;
+    bool  m_tb_enabled     = false;
 
     Search::Searcher searcher;
 

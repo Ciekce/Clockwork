@@ -30,6 +30,7 @@ struct SearchSettings {
     usize multipv    = 1;
     bool  silent     = false;
     bool  datagen    = false;
+    bool  tb_enabled = false;
 };
 
 // Forward declare for Searcher
@@ -158,6 +159,7 @@ public:
     void  exit();
 
     u64  node_count();
+    u64  tb_hit_count();
     void reset();
     void resize_tt(size_t mb) {
         tt.resize(mb, m_workers.size());
@@ -193,6 +195,9 @@ public:
     [[nodiscard]] u64 search_nodes() const {
         return m_search_nodes.load(std::memory_order_relaxed);
     }
+    [[nodiscard]] u64 tb_hits() const {
+        return m_tb_hits.load(std::memory_order_relaxed);
+    }
 
     [[nodiscard]] const ThreadData& get_thread_data() const {
         return m_td;
@@ -209,7 +214,12 @@ private:
         m_search_nodes.fetch_add(1, std::memory_order_relaxed);
     }
 
+    void increment_tb_hits() {
+        m_tb_hits.fetch_add(1, std::memory_order_relaxed);
+    }
+
     std::atomic<u64>         m_search_nodes;
+    std::atomic<u64>         m_tb_hits;
     time::TimePoint          m_search_start;
     time::TimePoint          m_last_info_time;
     Searcher&                m_searcher;

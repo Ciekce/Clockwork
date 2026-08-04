@@ -52,43 +52,43 @@ public:
         return file_mask(2) | file_mask(3) | file_mask(4) | file_mask(5);
     }
 
-    [[nodiscard]] static Bitboard fill_verticals(const Bitboard mask) {
+    [[nodiscard]] static constexpr Bitboard fill_verticals(const Bitboard mask) {
         Bitboard result = mask | (mask >> 8);
         result |= result >> 16;
         result |= result >> 32;
         return (result & Bitboard::rank_mask(0)) * Bitboard::file_mask(0);
     }
 
-    [[nodiscard]] bool empty() const {
+    [[nodiscard]] constexpr bool empty() const {
         return m_raw == 0;
     }
 
-    [[nodiscard]] usize popcount() const {
+    [[nodiscard]] constexpr usize popcount() const {
         return static_cast<usize>(std::popcount(m_raw));
     }
 
-    [[nodiscard]] i32 ipopcount() const {
+    [[nodiscard]] constexpr i32 ipopcount() const {
         return static_cast<i32>(std::popcount(m_raw));
     }
 
-    [[nodiscard]] Square msb() const {
+    [[nodiscard]] constexpr Square msb() const {
         return Square{static_cast<u8>(std::bit_width(m_raw) - 1)};
     }
-    [[nodiscard]] Square lsb() const {
+    [[nodiscard]] constexpr Square lsb() const {
         return Square{static_cast<u8>(std::countr_zero(m_raw))};
     }
 
-    [[nodiscard]] bool any() const {
+    [[nodiscard]] constexpr bool any() const {
         return static_cast<bool>(m_raw);
     }
 
     // Rank closest to player
-    [[nodiscard]] u8 front_rank(Color color) const {
+    [[nodiscard]] constexpr u8 front_rank(Color color) const {
         i32 color_shift = color == Color::White ? 0 : 56;
         return static_cast<u8>(m_raw >> color_shift);
     }
 
-    [[nodiscard]] Bitboard shift(Direction dir) const {
+    [[nodiscard]] constexpr Bitboard shift(Direction dir) const {
         constexpr u64 FILE_A = file_mask(0).m_raw;
         constexpr u64 FILE_H = file_mask(7).m_raw;
         switch (dir) {
@@ -111,23 +111,23 @@ public:
         }
     }
 
-    [[nodiscard]] Square frontmost_square(Color color) const {
+    [[nodiscard]] constexpr Square frontmost_square(Color color) const {
         return color == Color::White ? msb() : lsb();
     }
 
-    [[nodiscard]] static Bitboard forward_ranks(Color c, Square sq) {
+    [[nodiscard]] static constexpr Bitboard forward_ranks(Color c, Square sq) {
         return c == Color::White ? ~rank_mask(0) << (8 * sq.relative_rank(c))
                                  : ~rank_mask(7) >> (8 * sq.relative_rank(c));
     }
 
-    [[nodiscard]] Bitboard shift_relative(Color perspective, Direction dir) const {
+    [[nodiscard]] constexpr Bitboard shift_relative(Color perspective, Direction dir) const {
         if (perspective == Color::Black) {
             dir = static_cast<Direction>((static_cast<u32>(dir) + 4) % 8);
         }
         return shift(dir);
     }
 
-    [[nodiscard]] Bitboard shift_relative(Color perspective, Direction dir, const i32 times) const {
+    [[nodiscard]] constexpr Bitboard shift_relative(Color perspective, Direction dir, const i32 times) const {
         if (perspective == Color::Black) {
             dir = static_cast<Direction>((static_cast<u32>(dir) + 4) % 8);
         }
@@ -138,23 +138,23 @@ public:
         return result;
     }
 
-    [[nodiscard]] u64 value() const {
+    [[nodiscard]] constexpr u64 value() const {
         return m_raw;
     }
 
-    [[nodiscard]] bool is_set(Square sq) const {
+    [[nodiscard]] constexpr bool is_set(Square sq) const {
         return (m_raw >> sq.raw) & 1;
     }
 
-    void clear(Square sq) {
+    constexpr void clear(Square sq) {
         m_raw &= ~from_square(sq).m_raw;
     }
 
-    void set(Square sq) {
+    constexpr void set(Square sq) {
         m_raw |= from_square(sq).m_raw;
     }
 
-    void set(Square sq, bool value) {
+    constexpr void set(Square sq, bool value) {
         if (value) {
             set(sq);
         } else {
