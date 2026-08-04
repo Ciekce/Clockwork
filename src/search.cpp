@@ -153,6 +153,7 @@ u64 Searcher::node_count() {
 
 u64 Searcher::tb_hit_count() {
     u64 tb_hits = 0;
+    tb_hits += tb_root;
     for (auto& worker : m_workers) {
         tb_hits += worker->tb_hits();
     }
@@ -188,9 +189,12 @@ void Searcher::init_root_moves(const Position& root_position) {
     }
 
     const auto dtz_succeeded = tb::probe_root(root_position, root_moves);
+    const auto root_wdl      = root_moves[0].tb_wdl;
+
+    tb_root = root_wdl != WDL::None;
 
     // Avoid probing WDL when a successful DTZ probe says we're winning, to help matefinding.
-    probe_wdl = !dtz_succeeded || root_moves[0].tb_wdl != WDL::Win;
+    probe_wdl = !dtz_succeeded || root_wdl != WDL::Win;
 }
 
 Worker::Worker(Searcher& searcher, ThreadType thread_type) :

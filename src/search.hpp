@@ -96,6 +96,7 @@ public:
     // which is costly with many threads and DTZ tables on an HDD (TCEC).
     std::vector<RootMove> root_moves;
     usize                 multipv;
+    bool                  tb_root   = false;
     bool                  probe_wdl = false;
 
     // We use a shared_mutex to ensure proper mutual thread exclusion.and avoid races.
