@@ -701,7 +701,7 @@ Value Worker::search(
 
                 ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
                 Position pos_after  = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
-                repetition_info.push(pos_after.get_hash_key(), pos_after.is_reversible(m));
+                repetition_info.push(pos_after.get_hash_key(), pos.is_reversible(m));
 
                 Value probcut_value = -quiesce<IS_MAIN, false>(pos_after, ss + 1, -probcut_beta,
                                                                -probcut_beta + 1, ply + 1);
@@ -862,7 +862,7 @@ Value Worker::search(
         moves_played++;
 
         // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
-        repetition_info.push(pos_after.get_hash_key(), pos_after.is_reversible(m));
+        repetition_info.push(pos_after.get_hash_key(), pos.is_reversible(m));
 
         // Get search value
         Depth new_depth = depth - 1 + extension;
@@ -1190,7 +1190,7 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         moves.skip_quiets();
 
         // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
-        repetition_info.push(pos_after.get_hash_key(), pos_after.is_reversible(m));
+        repetition_info.push(pos_after.get_hash_key(), pos.is_reversible(m));
 
         // Get search value
         Value value = -quiesce<IS_MAIN, PV_NODE>(pos_after, ss + 1, -beta, -alpha, ply + 1);
