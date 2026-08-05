@@ -991,7 +991,7 @@ std::ostream& operator<<(std::ostream& os, const Position& position) {
     return os;
 }
 
-bool Position::is_reversible(Move move) {
+bool Position::is_reversible(Move move) const {
     return !(move.is_capture() || move.is_promotion() || move.is_castle()
              || (m_board[move.from()].ptype() == PieceType::Pawn));
 }

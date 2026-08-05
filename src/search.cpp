@@ -75,7 +75,7 @@ void Searcher::launch_search(SearchSettings settings_) {
         settings = settings_;
         tt.increment_age();
 
-        init_root_moves(m_workers[0]->root_position);
+        init_root_moves(m_workers[0]->root_position, m_workers[0]->repetition_info);
 
         for (auto& worker : m_workers) {
             worker->prepare();
@@ -160,7 +160,7 @@ u64 Searcher::tb_hit_count() {
     return tb_hits;
 }
 
-void Searcher::init_root_moves(const Position& root_position) {
+void Searcher::init_root_moves(const Position& root_position, RepetitionInfo& repetition_info) {
     root_moves.clear();
     root_moves.reserve(256);
 
@@ -188,7 +188,7 @@ void Searcher::init_root_moves(const Position& root_position) {
         return;
     }
 
-    const auto dtz_succeeded = tb::probe_root(root_position, root_moves);
+    const auto dtz_succeeded = tb::probe_root(root_position, repetition_info, root_moves);
     const auto root_wdl      = root_moves[0].tb_wdl;
 
     tb_root = root_wdl != WDL::None;

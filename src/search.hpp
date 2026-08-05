@@ -127,7 +127,7 @@ public:
     }
 
 private:
-    void init_root_moves(const Position& root_position);
+    void init_root_moves(const Position& root_position, RepetitionInfo& repetition_info);
 
     std::vector<unique_ptr_huge_page<Worker>> m_workers;
 };

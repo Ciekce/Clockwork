@@ -305,7 +305,7 @@ public:
 
     [[nodiscard]] u16 get_50mr_counter() const;
 
-    [[nodiscard]] bool is_reversible(Move move);
+    [[nodiscard]] bool is_reversible(Move move) const;
 
     const std::array<Wordboard, 2> calc_attacks_slow();
     const std::array<PieceMask, 2> calc_attacks_slow(Square sq);

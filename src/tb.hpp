@@ -1,6 +1,7 @@
 #pragma once
 
 #include "position.hpp"
+#include "repetition_info.hpp"
 #include "root_move.hpp"
 #include "util/types.hpp"
 #include <span>
@@ -24,7 +25,9 @@ void       free();
 [[nodiscard]] u32 max_pieces();
 
 // Returns whether the DTZ probe succeeded.
-[[nodiscard]] bool probe_root(const Position& pos, std::span<Search::RootMove> root_moves);
+[[nodiscard]] bool probe_root(const Position&             pos,
+                              RepetitionInfo&             repetition_info,
+                              std::span<Search::RootMove> root_moves);
 
 [[nodiscard]] Search::WDL probe_wdl(const Position& pos);
 
