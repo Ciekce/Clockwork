@@ -44,10 +44,10 @@ add_dependencies(lps checkout_lps)
 
 # Checkout Pyrrhic
 add_library(pyrrhic OBJECT
+    vendor/Pyrrhic/stdendian.h
     vendor/Pyrrhic/tbconfig.h
-    vendor/Pyrrhic/tbprobe.h
     vendor/Pyrrhic/tbprobe.cpp
-    vendor/Pyrrhic/stdendian.h)
+    vendor/Pyrrhic/tbprobe.h)
 target_include_directories(pyrrhic PUBLIC vendor/Pyrrhic)
 # Pyrrhic depends on bb_attacks.hpp, which depends on util/types.h, which depends on lps
 target_link_libraries(pyrrhic PRIVATE lps)

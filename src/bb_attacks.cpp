@@ -141,7 +141,7 @@ constexpr std::array<std::array<Bitboard, 64>, 64> RANK_ATTACKS = []() {
         return result;
     }();
 
-    constexpr std::array<Bitboard, 64> EAST = [WEST]() {
+    constexpr std::array<Bitboard, 64> EAST = [&WEST]() {
         std::array<Bitboard, 64> result{};
 
         for (u8 square_idx = 0; square_idx < 64; square_idx++) {
@@ -199,7 +199,6 @@ constexpr std::array<std::array<Bitboard, 64>, 64> FILE_ATTACKS = []() {
 
 Bitboard pawn_attacks(Square square, Color color) {
     return PAWN_ATTACKS[static_cast<usize>(color)][square.raw];
-    ;
 }
 
 Bitboard knight_attacks(Square square) {
