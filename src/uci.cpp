@@ -33,7 +33,6 @@ constexpr usize            MAX_MULTIPV = 256;
 
 UCIHandler::UCIHandler() :
     m_position(*Position::parse(STARTPOS)) {
-    searcher.initialize(1);
     searcher.set_position(m_position, m_repetition_info);
 }
 

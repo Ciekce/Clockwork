@@ -50,9 +50,8 @@ static i32 stat_malus(Depth malus_depth) {
                                              - tuned::stat_malus_sub);
 }
 
-Searcher::Searcher() :
-    idle_barrier(std::make_unique<std::barrier<>>(1)),
-    started_barrier(std::make_unique<std::barrier<>>(1)) {
+Searcher::Searcher() {
+    initialize(1);
 }
 
 Searcher::~Searcher() {
@@ -111,8 +110,10 @@ void Searcher::initialize(size_t thread_count) {
     if (m_workers.size() == thread_count) {
         return;
     }
-    {
-        std::unique_lock lock_guard{mutex};
+
+    std::unique_lock lock_guard{mutex};
+
+    if (!m_workers.empty()) {
         for (auto& worker : m_workers) {
             worker->exit();
         }

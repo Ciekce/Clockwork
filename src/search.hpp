@@ -105,9 +105,9 @@ public:
     // This ensures that the two classes of thread never step on each other.
     std::shared_mutex mutex;
 
-    using BarrierPtr = std::unique_ptr<std::barrier<>>;
-    BarrierPtr idle_barrier;
-    BarrierPtr started_barrier;
+    using BarrierPtr           = std::unique_ptr<std::barrier<>>;
+    BarrierPtr idle_barrier    = nullptr;
+    BarrierPtr started_barrier = nullptr;
 
     Searcher();
     ~Searcher();
